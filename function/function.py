@@ -2,7 +2,13 @@ import re
 import json
 from collections import defaultdict
 import hashlib
+from function.api import fetch_coingecko_markets_tor, fetch_coingecko_trending_tor,fetch_coingecko_keyword_data
+import time
 # from src.cache.redis_bloom import check_duplicate, add_to_bloom_filter
+
+
+
+
 
 
 def generate_unique_key(headline: str, source_url: str) -> str:
@@ -113,7 +119,8 @@ def summarize_news(headline, description):
 
 def insert_news_to_db(connection, cursor, rec_raw_text, rec_raw_source, rec_source_type, rec_content_hash):
     """
-    Inserts the given raw text, source URL, source type, and content hash into rec_raw_news table.
+    Inserts the given raw text, source URL, source type, and content hash into rec_raw_news table,
+    and returns the newly inserted row's ID.
     """
     try:
         query = """
@@ -124,15 +131,162 @@ def insert_news_to_db(connection, cursor, rec_raw_text, rec_raw_source, rec_sour
                 rec_raw_content_hash
             )
             VALUES (%s, %s, %s, %s)
+            RETURNING rec_raw_id;
         """
         cursor.execute(query, (rec_raw_text, rec_raw_source, rec_source_type, rec_content_hash))
+        
+        # Fetch the newly inserted ID
+        new_id = cursor.fetchone()[0]
         connection.commit()
+        
+        # Print/log success if desired
         print("Raw news content inserted successfully into the database.")
+        print(f"New raw news ID: {new_id}")
+        return new_id
+
     except Exception as error:
         connection.rollback()
         raise Exception(f"Error inserting data into the database: {error}")
+    
+def insert_crypto_data(connection, cursor):
+    
+    try:
 
+        markets_data = fetch_coingecko_markets_tor()
+        trending_data = fetch_coingecko_trending_tor()
 
+        markets_data_json = json.dumps(markets_data)
+        trending_data_json = json.dumps(trending_data)
+        data_type = "marketcap_and_trending" 
+
+        cursor.execute("SELECT rec_raw_id FROM rec_raw_news ORDER BY rec_raw_id  DESC LIMIT 1;")
+        row = cursor.fetchone()
+        if row:
+            raw_rec_id =  row[0]
+            rec_source_id = 2
+        else:
+            print("No raw news record found in rec_raw_news table.")
+            return None
+
+        query = """
+            INSERT INTO rec_crypto_market_data (
+                rec_raw_news_id,
+                rec_source_id,
+                rec_crypto_data,
+                rec_cypto_data_type,
+                rec_crypto_trending_data
+            )
+            VALUES ( %s, %s, %s, %s, %s)
+            RETURNING rec_crypto_data_id;
+        """
+ 
+        cursor.execute(query, (
+            raw_rec_id,               
+            rec_source_id,                              
+            markets_data_json, 
+            data_type,               
+            trending_data_json
+        ))
+
+        
+        # Print/log success if desired
+        print("crypto data content inserted successfully into the table.")
+
+    except Exception as error:
+        connection.rollback()
+        raise Exception(f"Error inserting data into the database: {error}")
+    
+def insert_crypto_analysis_data(connection, cursor, record, new_analysis_id, matched_coins_str):
+    """
+    Inserts coin data (fetched from CoinGecko) into rec_crypto_analysis.
+
+    For each coin in the matched_coins list (a JSON string like:
+      '["Dogecoin:DOGE", "Dogecoin:Elon Musk"]'),
+    the function:
+      1. Extracts the coin identifier (using the last part after splitting on ":" if available).
+      2. Fetches coin data from CoinGecko.
+      3. If multiple coins are returned (i.e. a list), it inserts each coin data record separately.
+      4. If a single coin data dict is returned, it inserts it as one record.
+      5. Waits 20 seconds before processing the next insertion.
+    """
+    try:
+        # Load the list of matched coins from the JSON string.
+        matched_coins = json.loads(matched_coins_str)
+        print("Matched coins:", matched_coins)
+        
+        # Process each coin string in the matched list.
+        for item in matched_coins:
+            # Split the string (e.g., "Dogecoin:DOGE" or "Dogecoin:Elon Musk")
+            parts = item.split(":")
+            if len(parts) >= 2:
+                # Use the last part as the coin identifier.
+                coinid = parts[0].strip()
+            else:
+                coinid = item.strip()
+            print("\nProcessing coin:", coinid)
+            
+            try:
+                # Fetch coin data using the coin identifier.
+                coin_data = fetch_coingecko_keyword_data(coinid)
+                print(f"Fetched coin data for keyword {coinid}: {coin_data}")
+            except Exception as fetch_err:
+                print(f"Error fetching coin data for keyword {coinid}: {fetch_err}")
+                continue  # Skip this coin on error.
+            
+            # Check if the returned coin data is a list (multiple coins) or a dict (single coin)
+            if isinstance(coin_data, list):
+                # Insert each coin record individually.
+                for cd in coin_data:
+                    try:
+                        coin_data_json = json.dumps(cd)
+                        ind_coin_id = cd.get("id")
+                        print(f"Inserting coin record for '{coinid}' with data: {coin_data_json}")
+                        insert_sql = """
+                            INSERT INTO rec_crypto_analysis (
+                                rec_news_analysis_id,
+                                rec_coingecko_coin_id,
+                                rec_keyword_crypto_data
+                            )
+                            VALUES (%s, %s, %s)
+                        """
+                        cursor.execute(insert_sql, (new_analysis_id, ind_coin_id, coin_data_json))
+                        connection.commit()
+                        print(f"Successfully inserted coin record for '{coinid}' into rec_crypto_analysis with analysis ID={new_analysis_id}")
+                    except Exception as ins_err:
+                        connection.rollback()
+                        print(f"Error inserting coin data for '{coinid}': {ins_err}")
+                    # Enforce a delay between each insertion.
+                    print("Waiting 20 seconds before next insertion...")
+                    time.sleep(20)
+            else:
+                # If a single coin record was returned, insert it.
+                try:
+                    coin_data_json = json.dumps(coin_data)
+                    coin_data_dict = json.loads(coin_data_json)
+                    coin_id_single = coin_data_dict.get("id")
+                    print(f"Inserting coin record for '{coinid}' with data: {coin_data_json}")
+                    insert_sql = """
+                        INSERT INTO rec_crypto_analysis (
+                            rec_news_analysis_id,
+                            rec_coingecko_coin_id,
+                            rec_keyword_crypto_data
+                        )
+                        VALUES (%s, %s, %s)
+                    """
+                    cursor.execute(insert_sql, (new_analysis_id, coin_id_single, coin_data_json))
+                    connection.commit()
+                    print(f"Successfully inserted coin record for '{coin_id_single}' into rec_crypto_analysis with analysis ID={new_analysis_id}")
+                except Exception as ins_err:
+                    connection.rollback()
+                    print(f"Error inserting coin data for '{coinid}': {ins_err}")
+                print("Waiting 20 seconds before next insertion...")
+                time.sleep(20)
+                
+    except Exception as error:
+        connection.rollback()
+        raise Exception(f"Error inserting crypto data for coins: {error}")
+
+         
 
 def get_latest_raw_news_id(connection, cursor):
     """
@@ -168,10 +322,13 @@ def insert_analysis_to_db(connection, cursor, values):
                 rec_source_id,
                 rec_content_hash
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING rec_analysis_id;
         """
         cursor.execute(insert_query, values)
+        analysis_id= cursor.fetchone()[0]
         connection.commit()
+        return analysis_id
         print("Inserted analysis record into the database.")
     except Exception as e:
         connection.rollback()
@@ -203,10 +360,13 @@ def insert_api_news_to_db(connection, cursor, values):
                 rec_news_metadata,
                 rec_source_id,
                 rec_content_hash
-            ) VALUES (%s, %s, %s, %s, %s, %s ,%s);
+            ) VALUES (%s, %s, %s, %s, %s, %s ,%s)
+            RETURNING rec_analysis_id;
         """
         cursor.execute(insert_query, values)
+        analysis_id= cursor.fetchone()[0]
         connection.commit()
+        return analysis_id
         print("Inserted API news record into the database.")
     except Exception as e:
         connection.rollback()

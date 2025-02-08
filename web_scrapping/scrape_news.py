@@ -1,125 +1,110 @@
 #!/usr/bin/env python3
-import requests
-from bs4 import BeautifulSoup
+"""Web scraping and content processing module."""
 import os
 import sys
+from contextlib import closing
+from typing import Optional, Tuple
+import logging
+import requests
+from bs4 import BeautifulSoup
+import time
 
-# Make sure Python can find your "src" modules
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)  # Define logger for this module
+
+# Configure absolute imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from src.db_connection import create_connection, close_connection
-from src.function.function import (
-    process_headlines_with_descriptions,
-    insert_news_to_db,
-    generate_unique_key
-)
+# Local imports
+from src.db_connection import database_connection
+from src.function.function import insert_news_to_db, generate_unique_key, insert_crypto_data
 from src.cache.redis_bloom import check_duplicate_scrape, add_to_scrape_bloom
 
-
-def fetch_raw_content():
-    """
-    Fetches raw content from BBC Business by combining headlines and descriptions.
-    Returns a single combined text block and the source URL.
-    """
-    url = "https://www.bbc.com/news/articles/cnvqe3le3z4o"
-    response = requests.get(url)
-    if response.status_code != 200:
-        print(f"Failed to fetch the URL: {url}, Status Code: {response.status_code}")
-        return None, None
-
-    soup = BeautifulSoup(response.content, "html.parser")
-
-    # Extract headlines and descriptions
-    headlines = soup.find_all("h2")
-    descriptions = soup.find_all("p")
-
-    # Combine all headlines and descriptions into a single text block
-    combined_text = "\n".join(
-        [
-            f"Headline: {h.get_text(strip=True)}\nDescription: {d.get_text(strip=True)}"
-            for h, d in zip(headlines, descriptions)
-        ]
-    )
-    return combined_text, url
+# Constants
+SCRAPE_URL = "https://www.bbc.com/business"
+SOURCE_ID = 1  # BBC source identifier
 
 
-def run_scraper():
-    """
-    1) Establish DB connection
-    2) Fetch raw content from BBC Business
-    3) Split into (headline, description) pairs
-    4) Deduplicate using the Bloom filter
-    5) Insert deduplicated text into the database
-    6) Perform further "matching" logic (process_headlines_with_descriptions)
-    """
-    # 1) Connect to PostgreSQL
-    connection, cursor = create_connection()
-    if not connection:
-        print("Database connection failed. Exiting...")
-        return
+def fetch_content(url: str) -> Optional[Tuple[str, str]]:
+    """Fetch and parse web content."""
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+    except requests.RequestException as error:
+        logger.error(f"Request failed: {error}")
+        return None
 
     try:
-        # 2) Fetch raw content
-        print("Fetching raw news content...")
-        raw_text, source_url = fetch_raw_content()
-        raw_source_id = 1  # e.g. 1 => BBC
+        soup = BeautifulSoup(response.content, "html.parser")
+        elements = zip(
+            soup.find_all("h2", limit=10),
+            soup.find_all("p", limit=10)
+        )
+        content = "\n".join(
+            f"Headline: {h.get_text(strip=True)}\nDescription: {d.get_text(strip=True)}"
+            for h, d in elements
+        )
+        return content, url
+    except Exception as error:
+        logger.error(f"Content parsing failed: {error}")
+        return None
 
-        if not raw_text:
-            print("No content fetched to insert.")
+
+def process_content(raw_text: str, source_url: str) -> str:
+    """Process and deduplicate content."""
+    deduplicated = []
+    lines = [line.strip() for line in raw_text.split("\n") if line.strip()]
+
+    for i in range(0, len(lines), 2):
+        if i + 1 >= len(lines):
+            continue
+
+        headline = lines[i].replace("Headline:", "").strip()
+        description = lines[i + 1].replace("Description:", "").strip()
+        content_hash = generate_unique_key(headline, source_url)
+
+        if not check_duplicate_scrape(content_hash):
+            add_to_scrape_bloom(content_hash)
+            deduplicated.append(f"Headline: {headline}\nDescription: {description}")
+
+            time.sleep(1)
+
+    return "\n".join(deduplicated)
+
+
+def run_scraper() -> None:
+    """Execute the web scraping pipeline."""
+    logger.info("Initializing web scraper")
+
+    try:
+        content_data = fetch_content(SCRAPE_URL)
+        if not content_data:
             return
 
-        # 3) Split lines into (headline, description) pairs
-        lines = [line.strip() for line in raw_text.split("\n") if line.strip()]
+        processed_content = process_content(*content_data)
+        if not processed_content:
+            logger.info("No new content after deduplication")
+            return
 
-        deduplicated_lines = []
-        for i in range(0, len(lines), 2):
-            if i + 1 >= len(lines):
-                break
+        with database_connection() as (conn, cursor):
+            insert_news_to_db(
+                conn,
+                cursor,
+                processed_content,
+                content_data[1],
+                SOURCE_ID,
+                generate_unique_key(processed_content[:50], content_data[1])
+            )
+            logger.info(f"Inserted {len(processed_content.splitlines())} news items")
 
-            headline_line = lines[i].replace("Headline:", "").strip()
-            description_line = lines[i + 1].replace("Description:", "").strip()
+            # Call your second function here
+            insert_crypto_data(conn, cursor)
+            logger.info("Crypto data inserted")
 
-            # 4) Generate hash + check Bloom
-            rec_content_hash = generate_unique_key(headline_line, source_url)
-            if check_duplicate_scrape(rec_content_hash):
-                print(f"Duplicate found (Bloom filter). Skipping: {headline_line}")
-                continue
-            else:
-                # If new, add to Bloom + store lines
-                add_to_scrape_bloom(rec_content_hash)
-                deduplicated_lines.append(
-                    f"Headline: {headline_line}\nDescription: {description_line}"
-                )
-
-        # Combine deduplicated lines back into a single block
-        deduplicated_text = "\n".join(deduplicated_lines)
-
-        if deduplicated_text:
-            print("Inserting deduplicated raw news content into the database...")
-            insert_news_to_db(connection, cursor, deduplicated_text, source_url, raw_source_id,rec_content_hash)
-
-            # 6) Existing logic: "matching" with keywords
-            print("\nProcessing matching logic...")
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            keywords_file_path = os.path.join(current_dir, "..", "utils", "cleaned_coin_keywords.json")
-
-            processed_data = process_headlines_with_descriptions(deduplicated_text, keywords_file_path)
-            if processed_data:
-                print("\nProcessed Data:")
-                for headline, description, matches in processed_data:
-                    print(f"- Headline: {headline}")
-                    print(f"  Description: {description}")
-                    print(f"  Matches: {matches}")
-            else:
-                print("\nNo matching data found.")
-        else:
-            print("No new (unique) lines to insert after deduplication.")
-
-    except Exception as main_error:
-        print(f"An error occurred: {main_error}")
-
-    finally:
-        close_connection(connection, cursor)
+    except Exception as error:
+        logger.error(f"Scraping pipeline failed: {error}", exc_info=True)
+        raise
 
 
 if __name__ == "__main__":

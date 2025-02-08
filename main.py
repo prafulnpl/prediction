@@ -1,31 +1,48 @@
+import logging
+from typing import NoReturn
+from time import sleep  # To keep the main program running
 
-import os
-import sys
+# Configure logging before other imports
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler()]
+)
 
-# Make sure Python can find our "src" modules.
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.join(BASE_DIR))
+logger = logging.getLogger(__name__)
 
-# Import the functions we created:
+# Local imports
 from web_scrapping.scrape_news import run_scraper
 from text_sentiment.predict import run_predict
 from api.newsorg import fetch_and_insert_news_with_sentiment_analysis
-from transformers import pipeline
 
 
+def main() -> NoReturn:
+    """Orchestrate the data pipeline execution."""
+    try:
+        # Start the listener for new inserts in a background thread
+        # logger.info("Starting background listener for new inserts...")
+        # start_listener_thread()  # This starts the listener in a separate thread
 
-def main():
+        # Now run the main pipeline
+        logger.info("Starting data pipeline...")
 
+        logger.info("Running web scraper...")
+        run_scraper()
 
+        logger.info("Running sentiment analysis...")
+        run_predict()
 
-    print("Running Scraper...")
-    run_scraper()  # This will do the scraping & insert raw text into the database.
+        logger.info("Fetching API news...")
+        fetch_and_insert_news_with_sentiment_analysis()
 
-    print("\nRunning Prediction...")
-    run_predict()  # This will perform sentiment analysis & insert analysis results.
+        # Allow the main program to keep running while the listener is active
+        logger.info("Pipeline completed successfully")
 
-    print("\nAnalaysing api")
-    fetch_and_insert_news_with_sentiment_analysis()  # This will fetch news from NewsAPI & insert into the database.
+    except Exception as error:
+        logger.error(f"Pipeline failed: {error}", exc_info=True)
+        raise
 
 if __name__ == "__main__":
     main()
+
