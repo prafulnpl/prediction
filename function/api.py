@@ -4,10 +4,14 @@ import time
 import json
 from urllib.parse import quote
 
+# Your CoinGecko API key.
+API_KEY = "CG-he5yWEp59V7X77tdtZ9FNBNy"
+
 # Define a function to create a TOR session with a specified cache.
 def get_tor_session(cache_name='default_cache', expire_after=600):
     """
-    Returns a CachedSession (using requests_cache) configured to use Tor via a SOCKS5 proxy.
+    Returns a CachedSession (using requests_cache) configured to use Tor via a SOCKS5 proxy,
+    and sets the CoinGecko API key in the headers.
     
     Parameters:
       cache_name: Name of the cache file.
@@ -18,6 +22,8 @@ def get_tor_session(cache_name='default_cache', expire_after=600):
         'http': 'socks5h://127.0.0.1:9050',
         'https': 'socks5h://127.0.0.1:9050'
     }
+    # Set your API key in the headers.
+    session.headers.update({'x_cg_pro_api_key': API_KEY})
     return session
 
 def fetch_coingecko_markets_tor():
@@ -53,6 +59,7 @@ def fetch_coingecko_trending_tor():
 def simplify_coin_data(raw_data: dict) -> dict:
     """
     Build a simplified version of the coin data from the raw CoinGecko API response.
+    Includes coin id and coin name.
     """
     simplified_data = {}
 
@@ -107,7 +114,16 @@ def simplify_coin_data(raw_data: dict) -> dict:
     return simplified_data
 
 def fetch_coingecko_keyword_data(keyword: str):
-    
+    """
+    Fetch detailed information about coin(s) matching the given keyword from CoinGecko via a Tor proxy.
+
+    The coin list is fetched using a session with a 3-day cache,
+    while individual coin data is fetched using a session with a 10-minute cache.
+
+    If multiple coins match the keyword, data for all matching coins is returned as a list of simplified dictionaries;
+    otherwise, a single simplified dictionary is returned.
+    """
+    # Use a session for the coin list with a 3-day (2592000 seconds) cache.
     session_list = get_tor_session(cache_name='coingecko_coin_list', expire_after=2592000)
     coin_list_url = "https://api.coingecko.com/api/v3/coins/list"
     response = session_list.get(coin_list_url, timeout=10)
@@ -124,7 +140,7 @@ def fetch_coingecko_keyword_data(keyword: str):
     # Determine how to fetch data.
     if matching_coins:
         if len(matching_coins) > 1:
-            # Batch insert: fetch data for all matching coins using a session with a 10-minute cache.
+            # Batch: fetch data for all matching coins using a session with a 10-minute cache.
             simplified_data_list = []
             session_individual = get_tor_session(cache_name='coingecko_individual', expire_after=600)
             for coin in matching_coins:
@@ -135,16 +151,15 @@ def fetch_coingecko_keyword_data(keyword: str):
                 coin_response = session_individual.get(coingecko_coin_url, timeout=10)
                 coin_response.raise_for_status()
                 raw_data = coin_response.json()
-                simplified_data = simplify_coin_data(raw_data,coin_identifier)
+                simplified_data = simplify_coin_data(raw_data)
                 simplified_data_list.append(simplified_data)
                 print("Fetched data for:", coin_identifier)
-                time.sleep(90)  # Delay to help avoid rate limiting.
+                time.sleep(120)  # Delay to help avoid rate limiting.
             return simplified_data_list
         else:
             coin_identifier = matching_coins[0]["id"]
     else:
         print("No matching coin found.")
-
 
     # URL-encode the coin identifier.
     coin_identifier_encoded = quote(coin_identifier)
@@ -157,7 +172,7 @@ def fetch_coingecko_keyword_data(keyword: str):
     response.raise_for_status()
     raw_data = response.json()
 
-    time.sleep(80)  # Delay to avoid rate limiting.
+    time.sleep(120)  # Delay to avoid rate limiting.
     print(simplify_coin_data(raw_data))
     return simplify_coin_data(raw_data)
 

@@ -8,7 +8,7 @@ import sys
 import os
 import json
 import logging
-from datetime import datetime
+from datetime import datetime , timedelta
 from transformers import pipeline
 import time
 
@@ -35,12 +35,13 @@ from src.cache.redis_bloom import check_duplicate_analysis, add_to_analysis_bloo
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # Define the NewsAPI endpoint and parameters
+yesterday_date = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
 API_URL = "https://newsapi.org/v2/everything"
 PARAMS = {
-    "q": "finance OR business OR cryptocurrency OR economy OR culture OR technology OR science",
-    "from": "2024-02-06",
+    "q": "finance OR business OR cryptocurrency OR economy  OR stock market",
+    "from": yesterday_date,
     "sortBy": "popularity",
-    "apiKey": "9a3c02b0a04c43409d379b41de50b3e9",  # Replace with your API key
+    "apiKey": "a4a239edec2445c494c60eec9c8a3971",  # Replace with your API key
 }
 
 # Initialize sentiment analysis models
