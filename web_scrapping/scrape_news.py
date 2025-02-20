@@ -22,7 +22,7 @@ from src.function.function import insert_news_to_db, generate_unique_key, insert
 from src.cache.redis_bloom import check_duplicate_scrape, add_to_scrape_bloom
 
 # Constants
-SCRAPE_URL = "https://www.bbc.com/business"
+SCRAPE_URL = "https://www.bbc.co.uk/news/resources/idt-3036d1db-da99-49b3-9d64-272472095d4a"
 SOURCE_ID = 1  # BBC source identifier
 
 

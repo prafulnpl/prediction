@@ -1,0 +1,44 @@
+version: '3'
+
+services:
+  db:
+    image: postgres:14.13
+    container_name: postgres-db
+    restart: always
+    environment:
+      POSTGRES_DB: raw_recommendation
+      POSTGRES_USER: prafulnepal
+      POSTGRES_PASSWORD: Midaseducation
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init_tables.sql:/docker-entrypoint-initdb.d/init_tables.sql
+
+  redis:
+    image: redislabs/rebloom:latest
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  app:
+    build: .
+    container_name: prediction-app
+    depends_on:
+      - db
+      - redis
+    environment:
+      DB_HOST: db
+      DB_NAME: raw_recommendation
+      DB_USER: prafulnepal
+      DB_PASSWORD: Midaseducation
+      DB_PORT: 5432
+      # Update Redis connection settings in your app to use:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - "5000:5000"
+
+volumes:
+  postgres_data:

@@ -1,0 +1,26 @@
+# 🖼️ Image Recognition
+tensorflow==2.16.2  # Deep learning framework for image recognition
+tf-keras==2.16.0    # Keras API for TensorFlow
+# clip-by-openai      # CLIP model for image and text understanding
+
+# 🌍 Web Scraping
+beautifulsoup4==4.12.3  # HTML/XML parsing and web scraping
+soupsieve==2.6         # CSS selector support for BeautifulSoup
+
+# 📝 Natural Language Processing & Sentiment Analysis
+transformers==4.36.2   # NLP models from Hugging Face
+torch==2.1.2          # PyTorch framework for deep learning
+
+# 🗄️ Database Connection & Caching
+psycopg2==2.9.10       # PostgreSQL database adapter
+python-dotenv==1.0.1   # Load environment variables from a .env file
+hiredis==2.4.0         # High-performance Redis serialization library
+redis==3.5.3           # Redis client for Python
+redisbloom==0.4.1      # Bloom filter and probabilistic data structures for Redis
+rmtest==0.7.0          # Redis module testing framework
+
+# ⚡ System & Utilities
+requests==2.31.0       # HTTP library for API calls
+psycopg2==2.9.10
+requests-cache==1.2.1
+
