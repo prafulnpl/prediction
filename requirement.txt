@@ -23,4 +23,4 @@ rmtest==0.7.0          # Redis module testing framework
 requests==2.31.0       # HTTP library for API calls
 psycopg2==2.9.10
 requests-cache==1.2.1
-
+requests[socks]

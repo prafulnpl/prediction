@@ -22,23 +22,36 @@ services:
     ports:
       - "6379:6379"
 
+  tor-proxy:
+    image: dperson/torproxy
+    container_name: tor-proxy
+    restart: always
+    ports:
+      - "9050:9050"  # SOCKS proxy port
+      - "9051:9051"  # Control port (optional)
+    environment:
+      TOR_EXTRA_OPTS: "-socksport 9050 -controlport 9051 -AutomapHostsOnResolve 1"
+
   app:
     build: .
     container_name: prediction-app
     depends_on:
       - db
       - redis
+      - tor-proxy  # Ensure Tor starts first
     environment:
       DB_HOST: db
       DB_NAME: raw_recommendation
       DB_USER: prafulnepal
       DB_PASSWORD: Midaseducation
       DB_PORT: 5432
-      # Update Redis connection settings in your app to use:
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      TOR_PROXY: "socks5h://tor-proxy:9050"  # Use the service name `tor-proxy`
     ports:
       - "5000:5000"
+    volumes:
+      - ./tor_logs:/var/log/tor  # Optional: Persist Tor logs
 
 volumes:
   postgres_data:

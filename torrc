@@ -1,0 +1,3 @@
+AutomapHostsOnResolve 1
+SocksPort 9050
+ControlPort 9051
