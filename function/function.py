@@ -173,7 +173,7 @@ def insert_crypto_data(connection, cursor):
                 rec_raw_news_id,
                 rec_source_id,
                 rec_crypto_data,
-                rec_cypto_data_type,
+                rec_crypto_data_type,
                 rec_crypto_trending_data
             )
             VALUES ( %s, %s, %s, %s, %s)

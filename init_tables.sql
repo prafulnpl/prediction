@@ -4,12 +4,17 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'rec_raw_news') THEN
         CREATE TABLE public.rec_raw_news (
             rec_raw_id serial4 NOT NULL,
-            rec_raw_title text NOT NULL,
-            rec_raw_content text NOT NULL,
-            rec_raw_published_date timestamp NOT NULL,
-            rec_raw_source_url text NULL,
-            created_at timestamp DEFAULT CURRENT_TIMESTAMP NULL,
-            updated_at timestamp DEFAULT CURRENT_TIMESTAMP NULL,
+            rec_raw_scrape_date TIMESTAMP,
+            rec_raw_title text,
+            rec_source_id INT,
+            rec_raw_source text,
+            rec_raw_text text,
+            rec_raw_content_hash text,
+            rec_raw_content text,
+            rec_raw_published_date timestamp,
+            rec_raw_source_url text,
+            created_at timestamp DEFAULT CURRENT_TIMESTAMP,
+            updated_at timestamp DEFAULT CURRENT_TIMESTAMP,
             CONSTRAINT rec_raw_news_pkey PRIMARY KEY (rec_raw_id)
         );
     END IF;
@@ -27,8 +32,8 @@ BEGIN
             rec_news_summary text NULL,
             rec_analysis_algorithm_version varchar(50) NULL,
             rec_news_metadata jsonb NULL,
-            created_at timestamp DEFAULT CURRENT_TIMESTAMP NULL,
-            updated_at timestamp DEFAULT CURRENT_TIMESTAMP NULL,
+            created_at timestamp DEFAULT CURRENT_TIMESTAMP,
+            updated_at timestamp DEFAULT CURRENT_TIMESTAMP,
             rec_source_id int4 NULL,
             rec_content_hash text NULL,
             rec_raw_content_hash text NULL,
@@ -50,8 +55,8 @@ BEGIN
             rec_api_url text NULL,
             rec_crypto_data jsonb NOT NULL,
             rec_crypto_data_type varchar(50) NULL,
-            inserted_at timestamp DEFAULT CURRENT_TIMESTAMP NULL,
-            updated_at timestamp DEFAULT CURRENT_TIMESTAMP NULL,
+            inserted_at timestamp DEFAULT CURRENT_TIMESTAMP,
+            updated_at timestamp DEFAULT CURRENT_TIMESTAMP,
             rec_crypto_trending_data jsonb NOT NULL,
             CONSTRAINT rec_crypto_market_data_pkey PRIMARY KEY (rec_crypto_data_id),
             CONSTRAINT fk_rec_raw_news FOREIGN KEY (rec_raw_news_id) REFERENCES public.rec_raw_news(rec_raw_id)
@@ -67,8 +72,8 @@ BEGIN
             rec_source_id serial4 NOT NULL,
             rec_source_name varchar(255) NOT NULL,
             rec_source_type varchar(50) NULL,
-            created_at timestamp DEFAULT CURRENT_TIMESTAMP NULL,
-            updated_at timestamp DEFAULT CURRENT_TIMESTAMP NULL,
+            created_at timestamp DEFAULT CURRENT_TIMESTAMP,
+            updated_at timestamp DEFAULT CURRENT_TIMESTAMP,
             CONSTRAINT rec_sources_pkey PRIMARY KEY (rec_source_id),
             CONSTRAINT rec_sources_rec_source_type_check CHECK (
                 (rec_source_type)::text = ANY (ARRAY['news', 'crypto', 'social']::text[])
@@ -77,3 +82,17 @@ BEGIN
     END IF;
 END $$;
 
+-- Create table rec_crypto_analysis if it does not exist
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'rec_crypto_analysis') THEN
+        CREATE TABLE public.rec_crypto_analysis (
+            rec_crypto_analysis_id BIGSERIAL PRIMARY KEY,
+            rec_news_analysis_id BIGINT NOT NULL,
+            fetch_timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            rec_keyword_crypto_data JSONB NOT NULL,
+            rec_coingecko_coin_id TEXT NOT NULL,
+            CONSTRAINT fk_rec_news_analysis FOREIGN KEY (rec_news_analysis_id) REFERENCES public.rec_news_analysis(rec_analysis_id)
+        );
+    END IF;
+END $$;

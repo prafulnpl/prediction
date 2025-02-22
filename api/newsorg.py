@@ -36,6 +36,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 
 # Define the NewsAPI endpoint and parameters
 yesterday_date = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+
+print(yesterday_date)
 API_URL = "https://newsapi.org/v2/everything"
 PARAMS = {
     "q": "finance OR business OR cryptocurrency OR economy  OR stock market",

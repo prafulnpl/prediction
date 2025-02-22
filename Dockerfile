@@ -1,12 +1,13 @@
+# Use official Python image
 FROM python:3.9.16
 
 # Set the working directory
 WORKDIR /src
 
-# Install system dependencies (including Tor)
+# Install system dependencies (PostgreSQL client + Tor)
 RUN apt-get update && apt-get install -y \
-    tor \
     postgresql-client \
+    tor \
     && rm -rf /var/lib/apt/lists/*
 
 # Upgrade pip
@@ -19,8 +20,9 @@ RUN pip install -r requirement.txt
 # Copy the application code
 COPY . .
 
-# Expose Tor's default SOCKS proxy port
-EXPOSE 9050
+# Expose Flask app port
+EXPOSE 5000
 
-# Start Tor in the background before running the app
-CMD service tor start && python main.py
+# Run Tor in the background before starting the application
+CMD tor & /src/run_loop.sh 
+

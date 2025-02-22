@@ -42,6 +42,7 @@ def fetch_coingecko_markets_tor():
     }
     response = session.get(url, params=params, timeout=10)
     response.raise_for_status()
+    time.sleep(60)
     return response.json()
 
 def fetch_coingecko_trending_tor():
@@ -54,6 +55,7 @@ def fetch_coingecko_trending_tor():
     url = "https://api.coingecko.com/api/v3/search/trending"
     response = session.get(url, timeout=10)
     response.raise_for_status()
+    time.sleep(60)
     return response.json()
 
 def simplify_coin_data(raw_data: dict) -> dict:
