@@ -1,6 +1,6 @@
 # 🖼️ Image Recognition
-tensorflow==2.16.2  # Deep learning framework for image recognition
-tf-keras==2.16.0    # Keras API for TensorFlow
+#tensorflow==2.16.2  # Deep learning framework for image recognition
+#tf-keras==2.16.0    # Keras API for TensorFlow
 # clip-by-openai      # CLIP model for image and text understanding
 
 # 🌍 Web Scraping

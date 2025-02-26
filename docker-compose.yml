@@ -1,10 +1,10 @@
-version: '3'
-
 services:
   db:
     image: postgres:14.13
     container_name: postgres-db
     restart: always
+    networks:
+      - app-network
     environment:
       POSTGRES_DB: raw_recommendation
       POSTGRES_USER: prafulnepal
@@ -14,20 +14,31 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init_tables.sql:/docker-entrypoint-initdb.d/init_tables.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U prafulnepal -d raw_recommendation"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redislabs/rebloom:latest
     container_name: redis
     restart: always
+    networks:
+      - app-network
     ports:
       - "6379:6379"
 
   app:
     build: .
     container_name: prediction-app
+    networks:
+      - app-network
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     environment:
       DB_HOST: db
       DB_NAME: raw_recommendation
@@ -36,8 +47,15 @@ services:
       DB_PORT: 5432
       REDIS_HOST: redis
       REDIS_PORT: 6379
+    working_dir: /app
+    command: ["/start-tor.sh", "python", "main.py"]
     ports:
       - "5000:5000"
 
 volumes:
   postgres_data:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge

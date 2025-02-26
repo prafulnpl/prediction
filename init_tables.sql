@@ -91,7 +91,7 @@ BEGIN
             rec_news_analysis_id BIGINT NOT NULL,
             fetch_timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
             rec_keyword_crypto_data JSONB NOT NULL,
-            rec_coingecko_coin_id TEXT NOT NULL,
+            rec_coingecko_coin_id TEXT,
             CONSTRAINT fk_rec_news_analysis FOREIGN KEY (rec_news_analysis_id) REFERENCES public.rec_news_analysis(rec_analysis_id)
         );
     END IF;

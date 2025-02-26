@@ -68,8 +68,6 @@ def process_content(raw_text: str, source_url: str) -> str:
             add_to_scrape_bloom(content_hash)
             deduplicated.append(f"Headline: {headline}\nDescription: {description}")
 
-            time.sleep(1)
-
     return "\n".join(deduplicated)
 
 

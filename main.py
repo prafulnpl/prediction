@@ -43,6 +43,19 @@ def main() -> NoReturn:
         logger.error(f"Pipeline failed: {error}", exc_info=True)
         raise
 
-if __name__ == "__main__":
-    main()
 
+def run_continuously() -> NoReturn:
+    """Run the main pipeline continuously."""
+    while True:
+        try:
+            main()
+            logger.info("Restarting pipeline in 60 seconds...")
+            sleep(60)  # Wait for 60 seconds before restarting
+        except Exception as error:
+            logger.error(f"Pipeline crashed: {error}", exc_info=True)
+            logger.info("Restarting pipeline in 60 seconds after crash...")
+            sleep(60)  # Wait for 60 seconds before restarting after a crash
+
+
+if __name__ == "__main__":
+    run_continuously()
