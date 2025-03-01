@@ -18,7 +18,7 @@ RUN pip install --upgrade pip
 COPY requirement.txt .
 
 # Install dependencies
-RUN pip install --no-cache-dir -r requirement.txt
+RUN pip install -r requirement.txt
 
 # Copy application code and startup scripts
 COPY . .

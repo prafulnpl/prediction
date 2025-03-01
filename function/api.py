@@ -4,6 +4,7 @@ import time
 import json
 from urllib.parse import quote
 import logging
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +20,10 @@ def get_tor_session(cache_name='default_cache', expire_after=600):
     session.headers.update({'x_cg_pro_api_key': API_KEY})
     return session
 
+# Retry settings: Retry up to 5 times with a 60-second delay
+@retry(stop=stop_after_attempt(5), wait=wait_fixed(60), reraise=True)
 def fetch_coingecko_markets_tor():
-    """Fetch market data using Tor."""
+    """Fetch market data using Tor with retry mechanism."""
     try:
         session = get_tor_session(cache_name='coingecko_markets', expire_after=600)
         url = "https://api.coingecko.com/api/v3/coins/markets"
@@ -33,21 +36,24 @@ def fetch_coingecko_markets_tor():
         response = session.get(url, params=params, timeout=10)
         response.raise_for_status()
         logger.info("Successfully fetched market data.")
+        time.sleep(100)  # Reduce this delay if needed
         return response.json()
-    except Exception as e:
+    except requests.RequestException as e:
         logger.error(f"Error fetching market data: {e}")
         raise
 
+@retry(stop=stop_after_attempt(5), wait=wait_fixed(60), reraise=True)
 def fetch_coingecko_trending_tor():
-    """Fetch trending data using Tor."""
+    """Fetch trending data using Tor with retry mechanism."""
     try:
         session = get_tor_session(cache_name='coingecko_trending', expire_after=600)
         url = "https://api.coingecko.com/api/v3/search/trending"
         response = session.get(url, timeout=10)
         response.raise_for_status()
         logger.info("Successfully fetched trending data.")
+        time.sleep(100)  # Reduce this delay if needed
         return response.json()
-    except Exception as e:
+    except requests.RequestException as e:
         logger.error(f"Error fetching trending data: {e}")
         raise
 

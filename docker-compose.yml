@@ -47,7 +47,7 @@ services:
       DB_PORT: 5432
       REDIS_HOST: redis
       REDIS_PORT: 6379
-    working_dir: /app
+    working_dir: /src
     command: ["/start-tor.sh", "python", "main.py"]
     ports:
       - "5000:5000"
