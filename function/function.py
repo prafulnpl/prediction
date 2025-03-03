@@ -210,7 +210,7 @@ def insert_crypto_analysis_data(connection, cursor, record, new_analysis_id, mat
 def get_latest_raw_news_id(connection, cursor):
     """Retrieve the most recently inserted raw news ID."""
     try:
-        cursor.execute("SELECT rec_raw_id FROM rec_raw_news ORDER BY rec_raw_scrape_date DESC LIMIT 1;")
+        cursor.execute("SELECT rec_raw_id FROM rec_raw_news ORDER BY rec_raw_id DESC LIMIT 1;")
         row = cursor.fetchone()
         if row:
             return row[0]

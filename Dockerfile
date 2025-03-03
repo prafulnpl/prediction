@@ -22,11 +22,9 @@ RUN pip install -r requirement.txt
 
 # Copy application code and startup scripts
 COPY . .
-COPY start-tor.sh /start-tor.sh
-RUN chmod +x /start-tor.sh
 
 # Expose Flask app port
 EXPOSE 5000
 
-# Start Tor and application
-CMD ["/start-tor.sh", "python", "main.py"]
+# Start Tor in the background & then run the app
+CMD tor & sleep 5 && python main.py

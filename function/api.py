@@ -8,7 +8,7 @@ from tenacity import retry, stop_after_attempt, wait_fixed
 
 logger = logging.getLogger(__name__)
 
-API_KEY = "CG-he5yWEp59V7X77tdtZ9FNBNy"
+# API_KEY = "CG-he5yWEp59V7X77tdtZ9FNBNy"
 
 def get_tor_session(cache_name='default_cache', expire_after=600):
     """Create a Tor session with caching."""
@@ -17,7 +17,7 @@ def get_tor_session(cache_name='default_cache', expire_after=600):
         'http': 'socks5h://127.0.0.1:9050',
         'https': 'socks5h://127.0.0.1:9050'
     }
-    session.headers.update({'x_cg_pro_api_key': API_KEY})
+    # session.headers.update({'x_cg_pro_api_key': API_KEY})
     return session
 
 # Retry settings: Retry up to 5 times with a 60-second delay
@@ -57,6 +57,8 @@ def fetch_coingecko_trending_tor():
         logger.error(f"Error fetching trending data: {e}")
         raise
 
+
+@retry(stop=stop_after_attempt(5), wait=wait_fixed(60), reraise=True)
 def simplify_coin_data(raw_data: dict) -> dict:
     """Simplify CoinGecko API response."""
     simplified_data = {
@@ -103,6 +105,7 @@ def simplify_coin_data(raw_data: dict) -> dict:
 
     return simplified_data
 
+@retry(stop=stop_after_attempt(5), wait=wait_fixed(60), reraise=True)
 def fetch_coingecko_keyword_data(keyword: str):
     """Fetch detailed information about coin(s) matching the given keyword."""
     try:

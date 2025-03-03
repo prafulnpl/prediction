@@ -113,6 +113,7 @@ def run_predict() -> None:
         with database_connection() as (connection, cursor):
             for record in process_news_items(connection, cursor):  # ✅ Fix: Pass both `connection` and `cursor`
                 try:
+                    logger.info(f"rec_raw_id: {record}")
                     new_analysis_id = insert_analysis_to_db(connection, cursor, record)
                     logger.info(f"Inserted analysis: {record[-1]}")
                     matched_coins_str = record[1]
