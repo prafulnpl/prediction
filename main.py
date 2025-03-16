@@ -50,7 +50,7 @@ def run_continuously() -> NoReturn:
         try:
             main()
             logger.info("Restarting pipeline in 60 seconds...")
-            sleep(3600)  # Wait for 60 seconds before restarting
+            sleep(870)  # Wait for 60 seconds before restarting
         except Exception as error:
             logger.error(f"Pipeline crashed: {error}", exc_info=True)
             logger.info("Restarting pipeline in 60 seconds after crash...")

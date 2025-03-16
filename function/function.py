@@ -2,7 +2,7 @@ import re
 import json
 from collections import defaultdict
 import hashlib
-from function.api import fetch_coingecko_markets_tor, fetch_coingecko_trending_tor, fetch_coingecko_keyword_data
+from function.api import fetch_coingecko_markets, fetch_coingecko_trending, fetch_coingecko_keyword_data
 import time
 import logging
 
@@ -110,8 +110,8 @@ def insert_news_to_db(connection, cursor, rec_raw_text, rec_raw_source, rec_sour
 def insert_crypto_data(connection, cursor):
     """Insert crypto market and trending data into the database."""
     try:
-        markets_data = fetch_coingecko_markets_tor()
-        trending_data = fetch_coingecko_trending_tor()
+        markets_data = fetch_coingecko_markets()
+        trending_data = fetch_coingecko_trending()
 
         markets_data_json = json.dumps(markets_data)
         trending_data_json = json.dumps(trending_data)

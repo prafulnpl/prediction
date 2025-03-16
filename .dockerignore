@@ -1,0 +1,18 @@
+# Ignore Docker-related files
+Dockerfile
+docker-compose.yml
+
+# Ignore version control
+.git
+.gitignore
+
+# Ignore dependencies and build files
+node_modules
+venv
+__pycache__
+*.pyc
+*.pyo
+
+# Ignore local environment files
+.env
+.DS_Store

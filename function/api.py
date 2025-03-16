@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+"""
+Fetch CoinGecko market, trending, and detailed coin data with caching and retry.
+"""
+
 import requests
 import requests_cache
 import time
@@ -8,57 +13,54 @@ from tenacity import retry, stop_after_attempt, wait_fixed
 
 logger = logging.getLogger(__name__)
 
-# API_KEY = "CG-he5yWEp59V7X77tdtZ9FNBNy"
-
-def get_tor_session(cache_name='default_cache', expire_after=600):
-    """Create a Tor session with caching."""
+def get_session(cache_name='default_cache', expire_after=300):
+    """Create a session with caching and a custom User-Agent header."""
     session = requests_cache.CachedSession(cache_name, expire_after=expire_after)
-    session.proxies = {
-        'http': 'socks5h://127.0.0.1:9050',
-        'https': 'socks5h://127.0.0.1:9050'
-    }
-    # session.headers.update({'x_cg_pro_api_key': API_KEY})
+    # Use a common browser User-Agent to mimic a real browser.
+    session.headers.update({
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0 Safari/537.36'
+    })
     return session
 
-# Retry settings: Retry up to 5 times with a 60-second delay
 @retry(stop=stop_after_attempt(5), wait=wait_fixed(60), reraise=True)
-def fetch_coingecko_markets_tor():
-    """Fetch market data using Tor with retry mechanism."""
+def fetch_coingecko_markets():
+    """Fetch market data from CoinGecko with retry mechanism."""
     try:
-        session = get_tor_session(cache_name='coingecko_markets', expire_after=600)
+        session = get_session(cache_name='coingecko_markets', expire_after=300)
         url = "https://api.coingecko.com/api/v3/coins/markets"
+        # Include the API key as a query parameter for demo access
         params = {
             "vs_currency": "usd",
             "order": "market_cap_desc",
             "per_page": 20,
-            "page": 1
+            "page": 1,
+            "sparkline": "false",
+            "x_cg_demo_api_key": "CG-394G8mJadiJKBucFmqmLw7ZD"
         }
         response = session.get(url, params=params, timeout=10)
         response.raise_for_status()
         logger.info("Successfully fetched market data.")
-        time.sleep(100)  # Reduce this delay if needed
+        time.sleep(1)  # Reduced delay for demo purposes
         return response.json()
     except requests.RequestException as e:
         logger.error(f"Error fetching market data: {e}")
         raise
 
 @retry(stop=stop_after_attempt(5), wait=wait_fixed(60), reraise=True)
-def fetch_coingecko_trending_tor():
-    """Fetch trending data using Tor with retry mechanism."""
+def fetch_coingecko_trending():
+    """Fetch trending data from CoinGecko with retry mechanism."""
     try:
-        session = get_tor_session(cache_name='coingecko_trending', expire_after=600)
+        session = get_session(cache_name='coingecko_trending', expire_after=300)
         url = "https://api.coingecko.com/api/v3/search/trending"
         response = session.get(url, timeout=10)
         response.raise_for_status()
         logger.info("Successfully fetched trending data.")
-        time.sleep(100)  # Reduce this delay if needed
+        time.sleep(1)  # Reduced delay for demo purposes
         return response.json()
     except requests.RequestException as e:
         logger.error(f"Error fetching trending data: {e}")
         raise
 
-
-@retry(stop=stop_after_attempt(5), wait=wait_fixed(60), reraise=True)
 def simplify_coin_data(raw_data: dict) -> dict:
     """Simplify CoinGecko API response."""
     simplified_data = {
@@ -109,7 +111,7 @@ def simplify_coin_data(raw_data: dict) -> dict:
 def fetch_coingecko_keyword_data(keyword: str):
     """Fetch detailed information about coin(s) matching the given keyword."""
     try:
-        session_list = get_tor_session(cache_name='coingecko_coin_list', expire_after=2592000)
+        session_list = get_session(cache_name='coingecko_coin_list', expire_after=300)
         coin_list_url = "https://api.coingecko.com/api/v3/coins/list"
         response = session_list.get(coin_list_url, timeout=10)
         response.raise_for_status()
@@ -124,7 +126,7 @@ def fetch_coingecko_keyword_data(keyword: str):
         if matching_coins:
             if len(matching_coins) > 1:
                 simplified_data_list = []
-                session_individual = get_tor_session(cache_name='coingecko_individual', expire_after=600)
+                session_individual = get_session(cache_name='coingecko_individual', expire_after=300)
                 for coin in matching_coins:
                     coin_identifier = coin["id"]
                     coin_identifier_encoded = quote(coin_identifier)
@@ -136,7 +138,7 @@ def fetch_coingecko_keyword_data(keyword: str):
                     simplified_data = simplify_coin_data(raw_data)
                     simplified_data_list.append(simplified_data)
                     logger.info(f"Fetched data for: {coin_identifier}")
-                    time.sleep(90)
+                    time.sleep(2)  # Reduced delay
                 return simplified_data_list
             else:
                 coin_identifier = matching_coins[0]["id"]
@@ -147,13 +149,13 @@ def fetch_coingecko_keyword_data(keyword: str):
         coin_identifier_encoded = quote(coin_identifier)
         logger.info(f"Using coin id: {coin_identifier_encoded}")
 
-        session_individual = get_tor_session(cache_name='coingecko_individual', expire_after=600)
+        session_individual = get_session(cache_name='coingecko_individual', expire_after=300)
         COINGECKO_API_URL = f"https://api.coingecko.com/api/v3/coins/{coin_identifier_encoded}"
         response = session_individual.get(COINGECKO_API_URL, timeout=10)
         response.raise_for_status()
         raw_data = response.json()
 
-        time.sleep(60)
+        time.sleep(2)  # Reduced delay
         return simplify_coin_data(raw_data)
     except Exception as e:
         logger.error(f"Error fetching keyword data: {e}")
@@ -162,15 +164,15 @@ def fetch_coingecko_keyword_data(keyword: str):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     try:
-        logger.info("Fetching markets data via Tor...")
-        markets = fetch_coingecko_markets_tor()
+        logger.info("Fetching markets data...")
+        markets = fetch_coingecko_markets()
         logger.info(f"Markets data: {markets}")
 
-        logger.info("Fetching trending data via Tor...")
-        trending = fetch_coingecko_trending_tor()
+        logger.info("Fetching trending data...")
+        trending = fetch_coingecko_trending()
         logger.info(f"Trending data: {trending}")
 
-        logger.info("Fetching Bitcoin data via Tor with caching...")
+        logger.info("Fetching Bitcoin data with caching...")
         bitcoin_data = fetch_coingecko_keyword_data("bitcoin")
         logger.info(f"Bitcoin data: {bitcoin_data}")
     except Exception as e:

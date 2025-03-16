@@ -50,9 +50,11 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
     working_dir: /src
-    command: ["/bin/sh", "-c", "tor & sleep 5 && python main.py"]
+    command: ["/bin/sh", "-c", "python main.py"]
     ports:
       - "5000:5000"
+    volumes:
+      - .:/src:cached
 
 volumes:
   postgres_data:

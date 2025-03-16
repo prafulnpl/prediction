@@ -35,17 +35,21 @@ from src.cache.redis_bloom import check_duplicate_analysis, add_to_analysis_bloo
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # Define the NewsAPI endpoint and parameters
-yesterday_date = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+# yesterday_date = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
 
-logging.info("Fetching API from date: %s", yesterday_date)
+logging.info("Fetching API from date: %s")
 
-API_URL = "https://newsapi.org/v2/everything"
+api_key = "764d22ea3228b5b22f149928adf12226"
+
+API_URL = "https://gnews.io/api/v4/top-headlines"
 PARAMS = {
-    "q": "finance OR business OR cryptocurrency OR economy  OR stock market",
-    "from": yesterday_date,
-    "sortBy": "popularity",
-    "apiKey": "a4a239edec2445c494c60eec9c8a3971",  # Replace with your API key
-}
+        "q": "(business OR investment OR finance OR war) AND (crypto OR cryptocurrency OR bitcoin OR ethereum OR blockchain OR regulation OR sanctions)",
+        "lang": "en",
+        "max": 20,
+        "apikey": api_key,
+        "sortby": "publishedAt",  # Get latest news first
+        "in": "title,description"  # Search in these fields only
+    }
 
 # Initialize sentiment analysis models
 logging.info("Loading sentiment analysis models...")
